@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: mysql:8.0
+    container_name: avb_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: avb_db
+      MYSQL_USER: avb_user
+      MYSQL_PASSWORD: avb_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "avb_user", "-pavb_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: avb_importer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/avb_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: avb_user
+      SPRING_DATASOURCE_PASSWORD: avb_password
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
